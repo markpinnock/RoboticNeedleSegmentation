@@ -28,8 +28,7 @@ def imgLoader(img_path, seg_path, img_list, seg_list, shuffle_flag):
             print(f"IMAGE OR MASK LOAD FAILURE: {img_name} ({e})")
 
         else:
-            yield (img_vol[::4, ::4, :, np.newaxis], seg_vol[::4, ::4, :, np.newaxis])
-            # TEST !!!!!!!!!!!!!!!!!!!!!!!!
+            yield (img_vol[::1, ::1, :, np.newaxis], seg_vol[::1, ::1, :, np.newaxis])
         finally:
             i += 1
 
