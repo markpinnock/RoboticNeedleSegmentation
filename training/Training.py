@@ -1,4 +1,6 @@
 from argparse import ArgumentParser
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -9,13 +11,14 @@ import tensorflow as tf
 import time
 
 sys.path.append('..')
-sys.path.append('/home/mpinnock/CNN_Robotic_Needle_Seg/scripts/')
+sys.path.append('/home/mpinnock/Robot/001_CNN_Robotic_Needle_Seg/')
 
 from Networks import UNetGen
 from utils.DataLoader import imgLoader
 from utils.TrainFuncs import trainStep, valStep
 
 
+# Handle arguments
 parser = ArgumentParser()
 parser.add_argument('--file_path', '-fp', help="File path", type=str)
 parser.add_argument('--data_path', '-dp', help="Data path", type=str)
@@ -29,6 +32,7 @@ parser.add_argument('--gpu', '-g', help="GPU number", type=int, nargs='?', const
 parser.add_argument('--eta', '-e', help="Learning rate", type=float, nargs='?', const=0.001, default=0.001)
 arguments = parser.parse_args()
 
+# Generate file path and data path
 if arguments.file_path == None:
     FILE_PATH = "C:/Users/rmappin/OneDrive - University College London/Collaborations/RobotNeedleSeg/Code/001_CNN_Robotic_Needle_Seg/"
 else:
@@ -39,19 +43,21 @@ if arguments.data_path == None:
 else:
     DATA_PATH = arguments.data_path
 
+# Set hyperparameters
 MB_SIZE = arguments.minibatch_size
-NC = arguments.num_chans
+NC = arguments.num_chans # Number of feature maps in first conv layer
 EPOCHS = arguments.epochs
 NUM_FOLDS = arguments.folds
 FOLD = arguments.crossval
-ETA = arguments.eta
-NUM_EX = 4
+ETA = arguments.eta # Learning rate
+NUM_EX = 4 # Number of example images to display
 
 if FOLD >= NUM_FOLDS and NUM_FOLDS != 0:
    raise ValueError("Fold number cannot be greater or equal to number of folds")
 
 GPU = arguments.gpu
 
+# Generate experiment name and save paths
 EXPT_NAME = f"nc{NC}_mb{MB_SIZE}_ep{EPOCHS}_eta{ETA}"
 
 if NUM_FOLDS > 0:
@@ -59,7 +65,7 @@ if NUM_FOLDS > 0:
 
 MODEL_SAVE_PATH = f"{FILE_PATH}models/{EXPT_NAME}/"
 
-if not os.path.exists(MODEL_SAVE_PATH) and NUM_FOLDS == 0:
+if not os.path.exists(MODEL_SAVE_PATH):
     os.mkdir(MODEL_SAVE_PATH)
 
 IMAGE_SAVE_PATH = f"{FILE_PATH}images/{EXPT_NAME}/"
@@ -67,11 +73,20 @@ IMAGE_SAVE_PATH = f"{FILE_PATH}images/{EXPT_NAME}/"
 if not os.path.exists(IMAGE_SAVE_PATH) and NUM_FOLDS == 0:
     os.mkdir(IMAGE_SAVE_PATH)
 
+# Open log file
 if arguments.file_path == None:
-    LOG_SAVE_PATH = f"{FILE_PATH}/{EXPT_NAME}.txt"
+    LOG_SAVE_PATH = f"{FILE_PATH}/"
 else:
-    LOG_SAVE_PATH = f"{FILE_PATH}reports/{EXPT_NAME}.txt"
+    LOG_SAVE_PATH = f"{FILE_PATH}reports/"
 
+LOG_SAVE_NAME = f"{LOG_SAVE_PATH}{EXPT_NAME}.txt"
+
+if not os.path.exists(LOG_SAVE_PATH):
+    os.mkdir(LOG_SAVE_PATH)
+
+log_file = open(LOG_SAVE_NAME, 'w')
+
+# Find data and check img and seg pair numbers match, then shuffle
 img_path = f"{DATA_PATH}Img/"
 seg_path = f"{DATA_PATH}Seg/"
 imgs = os.listdir(img_path)
@@ -89,6 +104,7 @@ temp_list = list(zip(imgs, segs))
 random.shuffle(temp_list)
 imgs, segs = zip(*temp_list)
 
+# Set cross validation folds and example images
 if NUM_FOLDS == 0:
     img_train = imgs
     seg_train = segs
@@ -109,6 +125,7 @@ else:
     img_examples = [s.encode("utf-8") for s in img_examples]
     seg_examples = [s.encode("utf-8") for s in seg_examples]
 
+# Create dataset
 train_ds = tf.data.Dataset.from_generator(
     imgLoader, args=[img_path, seg_path, img_train, seg_train, True], output_types=(tf.float32, tf.float32))
 
@@ -116,22 +133,29 @@ if NUM_FOLDS > 0:
     val_ds = tf.data.Dataset.from_generator(
         imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
 
+# Initialise model
 UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC)
 
 if arguments.file_path == None:
     print(UNet.summary())
 
+# Create losses
 train_metric = 0
 val_metric = 0
 train_count = 0
 val_count = 0
 Optimiser = keras.optimizers.Adam(ETA)
 
+# Set start time
+start_time = time.time()
+
+# Training
 for epoch in range(EPOCHS):
     for img, seg in train_ds.batch(MB_SIZE):
         train_metric += trainStep(img, seg, UNet, Optimiser)
         train_count += 1
 
+    # Validation step if required
     if NUM_FOLDS > 0:
         for img, seg in val_ds.batch(MB_SIZE):
             val_metric += valStep(img, seg, UNet)
@@ -139,10 +163,13 @@ for epoch in range(EPOCHS):
     else:
         val_count += 1e-6
 
+    # Print losses every epoch
     print(f"Epoch: {epoch + 1}, Train Loss: {train_metric / (train_count)}, Val Loss: {val_metric / (val_count)}")
+    log_file.write(f"Epoch: {epoch + 1}, Train Loss: {train_metric.result()}, Val Loss: {val_metric.result()}\n")
     train_metric = 0
     val_metric = 0
 
+    # Generate example images and save
     fig, axs = plt.subplots(4, NUM_EX)
 
     for i in range(4):
@@ -151,7 +178,7 @@ for epoch in range(EPOCHS):
                 img = data[0]
                 seg = data[1]
 
-            pred = UNet(img[np.newaxis, ...])
+            pred = UNet(img[np.newaxis, ...], training=False)
 
             axs[0, j].imshow(np.fliplr(img[:, :, 1, 0].T), cmap='gray', vmin=0.12, vmax=0.18, origin='lower')
             axs[0, j].axis('off')
@@ -162,6 +189,9 @@ for epoch in range(EPOCHS):
             axs[3, j].imshow(np.fliplr(img[:, :, 1, 0].T * pred[0, :, :, 1, 0].numpy().T), cmap='gray', origin='lower')
             axs[3, j].axis('off')
 
-    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.025, hspace=0.1)
     plt.savefig(f"{IMAGE_SAVE_PATH}/Epoch_{epoch + 1}.png", dpi=250)
     plt.close()
+
+log_file.write(f"Time: {(time.time() - start_time) / 60:.2f} min\n")
+log_file.close()
