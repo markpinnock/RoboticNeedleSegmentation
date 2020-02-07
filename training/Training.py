@@ -58,14 +58,14 @@ if FOLD >= NUM_FOLDS and NUM_FOLDS != 0:
 GPU = arguments.gpu
 
 # Generate experiment name and save paths
-EXPT_NAME = f"nc{NC}_mb{MB_SIZE}_ep{EPOCHS}_eta{ETA}"
+EXPT_NAME = f"nc{NC}_ep{EPOCHS}_eta{ETA}"
 
 if NUM_FOLDS > 0:
     EXPT_NAME += f"_cv{FOLD}"
 
 MODEL_SAVE_PATH = f"{FILE_PATH}models/{EXPT_NAME}/"
 
-if not os.path.exists(MODEL_SAVE_PATH):
+if not os.path.exists(MODEL_SAVE_PATH) and NUM_FOLDS == 0:
     os.mkdir(MODEL_SAVE_PATH)
 
 IMAGE_SAVE_PATH = f"{FILE_PATH}images/{EXPT_NAME}/"
@@ -169,29 +169,33 @@ for epoch in range(EPOCHS):
     train_metric = 0
     val_metric = 0
 
-    # Generate example images and save
-    fig, axs = plt.subplots(4, NUM_EX)
+    if (epoch + 1) % 100 == 0:
+        # Generate example images and save
+        fig, axs = plt.subplots(4, NUM_EX)
 
-    for i in range(4):
-        for j in range(NUM_EX):
-            for data in imgLoader(img_path.encode("utf-8"), seg_path.encode("utf-8"), [img_examples[j]], [seg_examples[j]], False):
-                img = data[0]
-                seg = data[1]
+        for i in range(4):
+            for j in range(NUM_EX):
+                for data in imgLoader(img_path.encode("utf-8"), seg_path.encode("utf-8"), [img_examples[j]], [seg_examples[j]], False):
+                    img = data[0]
+                    seg = data[1]
 
-            pred = UNet(img[np.newaxis, ...], training=False)
+                pred = UNet(img[np.newaxis, ...], training=False)
 
-            axs[0, j].imshow(np.fliplr(img[:, :, 1, 0].T), cmap='gray', vmin=0.12, vmax=0.18, origin='lower')
-            axs[0, j].axis('off')
-            axs[1, j].imshow(np.fliplr(pred[0, :, :, 1, 0].numpy().T), cmap='hot', origin='lower')
-            axs[1, j].axis('off')
-            axs[2, j].imshow(np.fliplr(seg[:, :, 1, 0].T), cmap='gray', origin='lower')
-            axs[2, j].axis('off')
-            axs[3, j].imshow(np.fliplr(img[:, :, 1, 0].T * pred[0, :, :, 1, 0].numpy().T), cmap='gray', origin='lower')
-            axs[3, j].axis('off')
+                axs[0, j].imshow(np.fliplr(img[:, :, 1, 0].T), cmap='gray', vmin=0.12, vmax=0.18, origin='lower')
+                axs[0, j].axis('off')
+                axs[1, j].imshow(np.fliplr(pred[0, :, :, 1, 0].numpy().T), cmap='hot', origin='lower')
+                axs[1, j].axis('off')
+                axs[2, j].imshow(np.fliplr(seg[:, :, 1, 0].T), cmap='gray', origin='lower')
+                axs[2, j].axis('off')
+                axs[3, j].imshow(np.fliplr(img[:, :, 1, 0].T * pred[0, :, :, 1, 0].numpy().T), cmap='gray', origin='lower')
+                axs[3, j].axis('off')
 
-    fig.subplots_adjust(wspace=0.025, hspace=0.1)
-    plt.savefig(f"{IMAGE_SAVE_PATH}/Epoch_{epoch + 1}.png", dpi=250)
-    plt.close()
+        fig.subplots_adjust(wspace=0.025, hspace=0.1)
+        plt.savefig(f"{IMAGE_SAVE_PATH}/Epoch_{epoch + 1}.png", dpi=250)
+        plt.close()
+
+if NUM_FOLDS == 0:
+    UNet.save_weights(f"{MODEL_SAVE_PATH}{EXPT_NAME}.ckpt")
 
 log_file.write(f"Time: {(time.time() - start_time) / 60:.2f} min\n")
 log_file.close()
