@@ -4,10 +4,12 @@ import os
 import nrrd
 
 
-FILE_PATH = "C:/Users/rmappin/OneDrive - University College London/Collaborations/RobotNeedleSeg/Data/"
-subject_id = "UCLH_01568304/"
-img_path = FILE_PATH + "SparseVolImgs/" + subject_id
-mask_path = FILE_PATH + "SparseVolMasks/" + subject_id
+FILE_PATH = "Z:/Robot_Seg_Raw_Data/"
+subject_id = "UCLH_08470270/"
+# img_path = FILE_PATH + "SparseVolImgs/" + subject_id
+# mask_path = FILE_PATH + "SparseVolMasks/" + subject_id
+img_path = FILE_PATH + "TestVolImages/" + subject_id
+mask_path = FILE_PATH + "TestVolMasks/" + subject_id
 
 # img_list = os.listdir(img_path)
 mask_list = os.listdir(mask_path)
@@ -25,6 +27,7 @@ for mask in mask_list:
         print(f"NO CORRESPONDING MASK FOUND: {mask} {img}")
     else:
         for i in range(mask_vol.shape[2]):
+            print(mask)
             fig, axs = plt.subplots(1, 3)
             axs[0].imshow(img_vol[:, :, i].T, cmap='gray', origin='lower')
             axs[1].imshow(mask_vol[:, :, i].T, cmap='gray', origin='lower')
