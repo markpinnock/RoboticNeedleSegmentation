@@ -58,6 +58,7 @@ NUM_FOLDS = arguments.folds
 FOLD = arguments.crossval
 ETA = arguments.eta # Learning rate
 NUM_EX = 4 # Number of example images to display
+DROP_RATE = 0.2 # Dropout rate
 
 if FOLD >= NUM_FOLDS and NUM_FOLDS != 0:
    raise ValueError("Fold number cannot be greater or equal to number of folds")
@@ -141,7 +142,7 @@ if NUM_FOLDS > 0:
         imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
 
 # Initialise model
-UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC)
+UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE, dropout_flag=True)
 
 if arguments.file_path == None:
     print(UNet.summary())

@@ -3,27 +3,32 @@ import tensorflow as tf
 import tensorflow.keras as keras
 
 
-def dnResNetBlock(nc, inputlayer):
+def dnResNetBlock(nc, inputlayer, drop_rate, dropout_flag):
     conv1 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(inputlayer)
     BN1 = tf.nn.relu(keras.layers.BatchNormalization()(conv1))
-    conv2 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(BN1)
+    drop1 = keras.layers.SpatialDropout3D(drop_rate)(BN1, training=dropout_flag)
+    conv2 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(drop1)
     BN2 = tf.nn.relu(keras.layers.BatchNormalization()(conv2))
-    pool = keras.layers.MaxPool3D((2, 2, 1), strides=(2, 2, 1), padding='same')(conv2)
+    drop2 = keras.layers.SpatialDropout3D(drop_rate)(BN2, training=dropout_flag)
+    pool = keras.layers.MaxPool3D((2, 2, 1), strides=(2, 2, 1), padding='same')(drop2)
     return BN2, pool
 
 
-def upResNetBlock(nc, inputlayer, skip, tconv_strides):
+def upResNetBlock(nc, inputlayer, skip, tconv_strides, drop_rate, dropout_flag):
     tconv = keras.layers.Conv3DTranspose(nc, (3, 3, 3), strides=tconv_strides, padding='same')(inputlayer)
     BN1 = tf.nn.relu(keras.layers.BatchNormalization()(tconv))
-    concat = keras.layers.concatenate([BN1, skip], axis=4)
+    drop1 = keras.layers.SpatialDropout3D(drop_rate)(BN1, training=dropout_flag)
+    concat = keras.layers.concatenate([drop1, skip], axis=4)
     conv1 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(concat)
     BN2 = tf.nn.relu(keras.layers.BatchNormalization()(conv1))
-    conv2 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(BN2)
+    drop2 = keras.layers.SpatialDropout3D(drop_rate)(BN2, training=dropout_flag)
+    conv2 = keras.layers.Conv3D(nc, (3, 3, 3), strides=(1, 1, 1), padding='same')(drop2)
     BN3 = tf.nn.relu(keras.layers.BatchNormalization()(conv2))
-    return BN3
+    drop3 = keras.layers.SpatialDropout3D(drop_rate)(BN3, training=dropout_flag)
+    return drop3
 
 
-def UNetGen(input_shape, starting_channels):
+def UNetGen(input_shape, starting_channels, drop_rate=0.0, dropout_flag=True):
     inputlayer = keras.layers.Input(shape=input_shape)
     nc = starting_channels
 
@@ -33,6 +38,7 @@ def UNetGen(input_shape, starting_channels):
     skip4, dnres4 = dnResNetBlock(nc * 8, dnres3)
     dn5 = keras.layers.Conv3D(nc * 16, (3, 3, 3), strides=(1, 1, 1), padding='same')(dnres4)
     BN = tf.nn.relu(keras.layers.BatchNormalization()(dn5))
+    drop = keras.layers.SpatialDropout3D(drop_rate)(BN, training=dropout_flag)
 
     upres4 = upResNetBlock(nc * 8, BN, skip4, (2, 2, 1))
     upres3 = upResNetBlock(nc * 4, upres4, skip3, (2, 2, 1))
@@ -40,7 +46,7 @@ def UNetGen(input_shape, starting_channels):
     upres1 = upResNetBlock(nc, upres2, skip1, (2, 2, 1))
 
     outputlayer = keras.layers.Conv3D(1, (3, 3, 3), strides=(1, 1, 1), padding='same', activation='sigmoid')(upres1)
-    # Consider 1x1x1
+    
     return keras.Model(inputs=inputlayer, outputs=outputlayer)
 
 
