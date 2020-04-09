@@ -16,13 +16,15 @@ sys.path.append('/home/mpinnock/Robot/001_CNN_Robotic_Needle_Seg/')
 from Networks import UNetGen
 from utils.DataLoader import imgLoader
 from utils.TrainFuncs import trainStep, valStep
+from utils.TransGen import TransMatGen
+from utils.Transformation import affineTransformation
 
 
 # Handle arguments
 parser = ArgumentParser()
 parser.add_argument('--file_path', '-fp', help="File path", type=str)
 parser.add_argument('--data_path', '-dp', help="Data path", type=str)
-# parser.add_argument('--data_aug', '-da', help="Data augmentation", action='store_true')
+parser.add_argument('--data_aug', '-da', help="Data augmentation", action='store_true')
 parser.add_argument('--minibatch_size', '-mb', help="Minibatch size", type=int, nargs='?', const=4, default=4)
 parser.add_argument('--num_chans', '-nc', help="Starting number of channels", type=int, nargs='?', const=32, default=32)
 parser.add_argument('--epochs', '-ep', help="Number of epochs", type=int, nargs='?', const=5, default=5)
@@ -42,6 +44,11 @@ if arguments.data_path == None:
     DATA_PATH = "Z:/Robot_Data/Train/"
 else:
     DATA_PATH = arguments.data_path
+
+AUG_FLAG = arguments.data_aug
+
+if AUG_FLAG:
+    DataAug = TransMatGen()
 
 # Set hyperparameters
 MB_SIZE = arguments.minibatch_size
@@ -152,6 +159,11 @@ start_time = time.time()
 # Training
 for epoch in range(EPOCHS):
     for img, seg in train_ds.batch(MB_SIZE):
+        if AUG_FLAG:
+            trans_mat = DataAug.transMatGen(img.shape[0])
+            img = affineTransformation(img, trans_mat)
+            seg = affineTransformation(seg, trans_mat)
+
         train_metric += trainStep(img, seg, UNet, Optimiser)
         train_count += 1
 
