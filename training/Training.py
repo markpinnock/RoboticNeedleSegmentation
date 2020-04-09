@@ -34,12 +34,12 @@ arguments = parser.parse_args()
 
 # Generate file path and data path
 if arguments.file_path == None:
-    FILE_PATH = "C:/Users/rmappin/OneDrive - University College London/Collaborations/RobotNeedleSeg/Code/001_CNN_Robotic_Needle_Seg/"
+    FILE_PATH = "C:/Users/roybo/OneDrive - University College London/Collaborations/RobotNeedleSeg/Code/001_CNN_RNS/"
 else:
     FILE_PATH = arguments.file_path
 
 if arguments.data_path == None:
-    DATA_PATH = "Z:/Robot_Data/"
+    DATA_PATH = "Z:/Robot_Data/Train/"
 else:
     DATA_PATH = arguments.data_path
 
@@ -165,11 +165,11 @@ for epoch in range(EPOCHS):
 
     # Print losses every epoch
     print(f"Epoch: {epoch + 1}, Train Loss: {train_metric / (train_count)}, Val Loss: {val_metric / (val_count)}")
-    log_file.write(f"Epoch: {epoch + 1}, Train Loss: {train_metric.result()}, Val Loss: {val_metric.result()}\n")
+    log_file.write(f"Epoch: {epoch + 1}, Train Loss: {train_metric}, Val Loss: {val_metric}\n")
     train_metric = 0
     val_metric = 0
 
-    if (epoch + 1) % 100 == 0:
+    if (epoch + 1) % EPOCHS == 0:
         # Generate example images and save
         fig, axs = plt.subplots(4, NUM_EX)
 
