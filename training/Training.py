@@ -67,7 +67,7 @@ GPU = arguments.gpu
 
 # Generate experiment name and save paths
 EXPT_NAME = f"nc{NC}_ep{EPOCHS}_eta{ETA}"
-PRIOR_NAME = "nc4_ep100_eta0.001"
+PRIOR_NAME = "nc4_ep5_eta0.001"
 
 if NUM_FOLDS > 0:
     EXPT_NAME += f"_cv{FOLD}"
@@ -149,7 +149,7 @@ if NUM_FOLDS > 0:
 # Initialise model
 UNetPrior = UNetGen(input_shape=PRIOR_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE, dropout_flag=True)
 UNetPrior.load_weights(PRIOR_PATH)
-UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC, drop_rate=0.0, dropout_flag=False)
+UNet = UNetGen(input_shape=IMG_SIZE, starting_channels=NC, drop_rate=0.0, dropout_flag=False)
 
 if arguments.file_path == None:
     print(UNet.summary())
