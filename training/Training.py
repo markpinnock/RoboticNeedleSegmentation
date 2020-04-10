@@ -147,9 +147,9 @@ if NUM_FOLDS > 0:
         imgLoader, args=[img_path, seg_path, img_val, seg_val, priors, False, True], output_types=(tf.float32, tf.float32, tf.float32))
 
 # Initialise model
-UNetPrior = UNetGen(input_shape=PRIOR_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE)
+UNetPrior = UNetGen(input_shape=PRIOR_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE, dropout_flag=True)
 UNetPrior.load_weights(PRIOR_PATH)
-UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE, dropout_flag=True)
+UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC, drop_rate=0.0, dropout_flag=False)
 
 if arguments.file_path == None:
     print(UNet.summary())
