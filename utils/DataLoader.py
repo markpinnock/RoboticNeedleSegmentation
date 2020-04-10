@@ -3,8 +3,14 @@ import os
 import random
 import tensorflow as tf
 
+sys.path.append('..')
+sys.path.append("C:/Users/roybo/OneDrive - University College London/Collaborations/RobotNeedleSeg/Code/002_CNN_Bayes_RNS/scripts/training/")
 
-def imgLoader(img_path, seg_path, img_list, seg_list, shuffle_flag):
+from Networks import UNetGen
+from utils.TrainFuncs import varDropout
+
+
+def imgLoader(img_path, seg_path, img_list, seg_list, prior_list, shuffle_flag, prior_flag=False):
     img_path = img_path.decode("utf-8")
     seg_path = seg_path.decode("utf-8")
 
@@ -20,15 +26,32 @@ def imgLoader(img_path, seg_path, img_list, seg_list, shuffle_flag):
         try:
             img_name = img_list[i].decode("utf-8")
             img_vol = np.load(img_path + img_name).astype(np.float32)
+            img_vol = img_vol[:, :, :, np.newaxis]
 
             seg_name = img_name[:-5] + "M.npy"
             seg_vol = np.load(seg_path  + seg_name).astype(np.float32)
+            seg_vol = seg_vol[:, :, :, np.newaxis]
+
+            if prior_flag:
+                idx = np.where(prior_list == img_name.encode("utf-8"))
+                prior_name = prior_list[idx[0] - 1][0].decode("utf-8")
+
+                if prior_name[:-10] != img_name[:-10]:
+                    prior_vol = np.zeros(img_vol.shape, dtype=np.float32)
+                    # print(img_name, "ZEROS")
+                else:
+                    prior_vol = np.load(img_path + prior_name).astype(np.float32)
+                    prior_vol = prior_vol[:, :, :, np.newaxis]
+                    # print(img_name, prior_name)
 
         except Exception as e:
             print(f"IMAGE OR MASK LOAD FAILURE: {img_name} ({e})")
 
         else:
-            yield (img_vol[::1, ::1, :, np.newaxis], seg_vol[::1, ::1, :, np.newaxis])
+            if prior_flag:
+                yield (img_vol, seg_vol, prior_vol)
+            else:
+                yield (img_vol, seg_vol)
         finally:
             i += 1
 
@@ -39,10 +62,17 @@ if __name__ == "__main__":
     FILE_PATH = "Z:/Robot_Data/"
     img_path = f"{FILE_PATH}Img/"
     seg_path = f"{FILE_PATH}Seg/"
+    
+    PRIOR_NAME = "nc4_ep100_eta0.001"
+    PRIOR_PATH = f"C:/Users/roybo/OneDrive - University College London/Collaborations/RobotNeedleSeg/Code/002_CNN_Bayes_RNS/scripts/training/prior/{PRIOR_NAME}.ckpt"
+    UNetPrior = UNetGen(input_shape=(512, 512, 3, 1, ), starting_channels=4, drop_rate=0.2)
+    UNetPrior.load_weights(PRIOR_PATH)
+
     imgs = os.listdir(img_path)
     segs = os.listdir(seg_path)
     imgs.sort()
     segs.sort()
+    priors = imgs
 
     N = len(imgs)
     NUM_FOLDS = 5
@@ -79,14 +109,22 @@ if __name__ == "__main__":
     print(f"N: {N}, val: {len(img_val)}, train: {len(img_train)}, val + train: {len(img_val) + len(img_train)}")
     
     train_ds = tf.data.Dataset.from_generator(
-        imgLoader, args=[img_path, seg_path, img_train, seg_train, True], output_types=(tf.float32, tf.float32))
+        imgLoader, args=[img_path, seg_path, img_train, seg_train, True, True], output_types=(tf.float32, tf.float32))
 
     val_ds = tf.data.Dataset.from_generator(
-        imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
+        imgLoader, args=[img_path, seg_path, img_val, seg_val, False, True], output_types=(tf.float32, tf.float32))
     
     for data in train_ds.batch(MB_SIZE):
         print(data[0].shape, data[1].shape)
-        # pass
+        plt.subplot(1, 3, 1)
+        plt.imshow(np.fliplr(data[0][0, :, :, 1, 0].numpy().T), cmap='gray', origin='lower', vmin=0.12, vmax=0.18)
+        plt.subplot(1, 3, 2)
+        plt.imshow(np.fliplr(data[2][0, :, :, 1, 0].numpy().T), cmap='gray', origin='lower', vmin=0.12, vmax=0.18)
+        # pred = UNetPrior(data[2])
+        _, pred_var = varDropout(data[2], UNetPrior, T=10)
+        plt.subplot(1, 3, 3)
+        plt.imshow(np.fliplr(pred_var[0, :, :, 1].T), cmap='hot', origin='lower')
+        plt.pause(2)
     
     for data in val_ds.batch(MB_SIZE):
         print(data[0].shape, data[1].shape)

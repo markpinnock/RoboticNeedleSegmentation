@@ -140,11 +140,11 @@ else:
 
 # Create dataset
 train_ds = tf.data.Dataset.from_generator(
-    imgLoader, args=[img_path, seg_path, img_train, seg_train, True], output_types=(tf.float32, tf.float32))
+    imgLoader, args=[img_path, seg_path, img_train, seg_train, priors, True, True], output_types=(tf.float32, tf.float32, tf.float32))
 
 if NUM_FOLDS > 0:
     val_ds = tf.data.Dataset.from_generator(
-        imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
+        imgLoader, args=[img_path, seg_path, img_val, seg_val, priors, False, True], output_types=(tf.float32, tf.float32, tf.float32))
 
 # Initialise model
 UNetPrior = UNetGen(input_shape=PRIOR_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE)
@@ -166,19 +166,22 @@ start_time = time.time()
 
 # Training
 for epoch in range(EPOCHS):
-    for img, seg in train_ds.batch(MB_SIZE):
+    for img, seg, prior in train_ds.batch(MB_SIZE):
         if AUG_FLAG:
             trans_mat = DataAug.transMatGen(img.shape[0])
             img = affineTransformation(img, trans_mat)
             seg = affineTransformation(seg, trans_mat)
 
+        _, pred_var = varDropout(prior, UNetPrior, T=10)
+        img = tf.concat([img, pred_var[:, :, :, :, np.newaxis]], axis=4)
         train_metric += trainStep(img, seg, UNet, Optimiser)
         train_count += 1
 
     # Validation step if required
     if NUM_FOLDS > 0:
-        for img, seg in val_ds.batch(MB_SIZE):
+        for img, seg, prior in val_ds.batch(MB_SIZE):
             _, pred_var = varDropout(prior, UNetPrior, T=10) # POTENTIALLY NEEDS ADJUSTING
+            img = tf.concat([img, pred_var[:, :, :, :, np.newaxis]], axis=4)
             val_metric += valStep(img, seg, UNet)
             val_count += 1
     else:
