@@ -197,6 +197,26 @@ for epoch in range(EPOCHS):
         # Generate example images and save
         fig, axs = plt.subplots(4, NUM_EX)
 
+        # CONVERT TO USE THESE AS EXAMPLE IMAGES
+        prior_imgs = np.zeros((NUM_EX, 512, 512, 3, 1), dtype=np.float32)
+        drop_imgs = np.zeros((NUM_EX, 512, 512, 3, 2), dtype=np.float32)
+        rgb_pred = np.zeros((NUM_EX, 512, 512, 3, 3), dtype=np.float32)
+
+        prior_bytes = [vol.encode("utf-8") for vol in priors]
+
+        for j in range(NUM_EX):
+            for data in imgLoader(img_path.encode("utf-8"), seg_path.encode("utf-8"), [img_examples[j]], [seg_examples[j]], np.array(prior_bytes), False, True):
+                drop_imgs[j, :, :, :, :] = data[0]
+                rgb_pred[j, :, :, :, 0] = np.squeeze(data[1])
+                prior_imgs[j, :, :, :, :] = data[2]
+
+        _, prior_pred = varDropout(prior_imgs, UNetPrior, T=10)
+        drop_imgs[:, :, :, :, 1] = prior_pred
+        pred = UNet(drop_imgs, training=False)
+        pred_mean, pred_var = varDropout(drop_imgs, UNet, T=10)
+        rgb_pred[:, :, :, :, 1] = pred[:, :, :, :, 0].numpy()
+        rgb_pred[:, :, :, :, 2] = pred[:, :, :, :, 0].numpy()
+
         for i in range(4):
             for j in range(NUM_EX):
                 for data in imgLoader(img_path.encode("utf-8"), seg_path.encode("utf-8"), [img_examples[j]], [seg_examples[j]], False):
