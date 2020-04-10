@@ -77,7 +77,7 @@ if not os.path.exists(MODEL_SAVE_PATH) and NUM_FOLDS == 0:
 
 IMAGE_SAVE_PATH = f"{FILE_PATH}images/{EXPT_NAME}/"
 
-if not os.path.exists(IMAGE_SAVE_PATH) and NUM_FOLDS == 0:
+if not os.path.exists(IMAGE_SAVE_PATH):
     os.mkdir(IMAGE_SAVE_PATH)
 
 # Open log file
