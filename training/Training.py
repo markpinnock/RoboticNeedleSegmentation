@@ -67,10 +67,12 @@ GPU = arguments.gpu
 
 # Generate experiment name and save paths
 EXPT_NAME = f"nc{NC}_ep{EPOCHS}_eta{ETA}"
+PRIOR_NAME = "nc4_ep100_eta0.001"
 
 if NUM_FOLDS > 0:
     EXPT_NAME += f"_cv{FOLD}"
 
+PRIOR_PATH = f"{FILE_PATH}scripts/training/prior/{PRIOR_NAME}.ckpt"
 MODEL_SAVE_PATH = f"{FILE_PATH}models/{EXPT_NAME}/"
 
 if not os.path.exists(MODEL_SAVE_PATH) and NUM_FOLDS == 0:
@@ -101,11 +103,14 @@ imgs = os.listdir(img_path)
 segs = os.listdir(seg_path)
 imgs.sort()
 segs.sort()
+priors = imgs
 
 N = len(imgs)
 assert N == len(segs), "HI/LO IMG PAIRS UNEVEN LENGTHS"
 
-LO_VOL_SIZE = (512, 512, 3, 1, )
+PRIOR_VOL_SIZE = (512, 512, 3, 1, )
+IMG_SIZE = (512, 512, 3, 2, )
+RGB_SIZE = (512, 512, 3, 3, )
 
 random.seed(10)
 temp_list = list(zip(imgs, segs))
@@ -142,6 +147,8 @@ if NUM_FOLDS > 0:
         imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
 
 # Initialise model
+UNetPrior = UNetGen(input_shape=PRIOR_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE)
+UNetPrior.load_weights(PRIOR_PATH)
 UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC, drop_rate=DROP_RATE, dropout_flag=True)
 
 if arguments.file_path == None:
@@ -171,6 +178,7 @@ for epoch in range(EPOCHS):
     # Validation step if required
     if NUM_FOLDS > 0:
         for img, seg in val_ds.batch(MB_SIZE):
+            _, pred_var = varDropout(prior, UNetPrior, T=10) # POTENTIALLY NEEDS ADJUSTING
             val_metric += valStep(img, seg, UNet)
             val_count += 1
     else:
