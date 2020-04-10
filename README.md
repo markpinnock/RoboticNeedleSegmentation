@@ -1,0 +1,1 @@
+Needle segmentation U-Net for use on CT volumes, designed for robotics collaborative project. Branches include experimental work on use of cascaded variational inference U-Nets for segmentation and some work on the saliency maps of the network.
