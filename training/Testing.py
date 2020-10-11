@@ -44,15 +44,17 @@ UNet.load_weights(f"{MODEL_SAVE_PATH}{EXPT_NAME}.ckpt")
 
 # Initialise test result array and rgb array for seg difference
 test_metric = 0
+count = 0
 rgb_pred = np.zeros((MB_SIZE, 512, 512, 3, 3), dtype=np.float32)
 
 # Iterate through imgs in dataset, display results
 for img, seg in test_ds.batch(MB_SIZE):
-    fig, axs = plt.subplots(3, MB_SIZE)
+    fig, axs = plt.subplots(3, MB_SIZE, figsize=(18, 9))
     pred = UNet(img)
     temp_metric = diceLoss(pred, seg)
     test_metric += temp_metric
-    print(f"Batch Dice score: {1 - temp_metric / MB_SIZE}")
+    count += (pred.shape[0] / MB_SIZE)
+    print(f"Batch Dice score: {1 - temp_metric}", )
 
     rgb_pred[:, :, :, :, 0] = seg[:, :, :, :, 0]
     rgb_pred[:, :, :, :, 1] = pred[:, :, :, :, 0].numpy()
@@ -63,7 +65,7 @@ for img, seg in test_ds.batch(MB_SIZE):
         axs[0, j].axis('off')
         axs[1, j].imshow(np.fliplr(img[j, :, :, 1, 0].numpy().T), cmap='gray', vmin=0.12, vmax=0.18, origin='lower')
         axs[1, j].axis('off')
-        axs[1, j].imshow(np.fliplr(np.ma.masked_where(pred[j, :, :, 1, 0].numpy().T == False, pred[j, :, :, 1, 0].numpy().T)), cmap='Set1', origin='lower')
+        axs[1, j].imshow(np.fliplr(np.ma.masked_where(pred[j, :, :, 1, 0].numpy().T < 1e-3, pred[j, :, :, 1, 0].numpy().T)), cmap='plasma', origin='lower')
         axs[1, j].axis('off')
         r_pred = np.fliplr(rgb_pred[j, :, :, 1, 0].T)
         g_pred = np.fliplr(rgb_pred[j, :, :, 1, 1].T)
@@ -74,4 +76,4 @@ for img, seg in test_ds.batch(MB_SIZE):
     plt.show()
 
 # Print final dice score
-print(f"Final Dice score: {test_metric / N}")
+print(f"Final Dice score: {1 - (test_metric / count)}")

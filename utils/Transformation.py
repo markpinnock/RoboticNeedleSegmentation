@@ -4,14 +4,17 @@ import tensorflow as tf
 import time
 
 
-""" Based on work by Tensorflow authors, found at:
+""" Based on work found at:
     https://github.com/daviddao/spatial-transformer-tensorflow/blob/master/spatial_transformer.py """
 
 
-def affineTransformation(input_vol, thetas):
-    """ input_vol: 3D img volume (mb, height, width, depth, nc)
-        thetas: 2x2 matrix for transform (mb, 2, 2) """
-    """ NB: only performs 2D transformations on 3D volume!!! """
+def affine_transformation(input_vol, thetas):
+
+    """ - Implements affine 2D transformation on 3D image volumes
+    - input_vol: 3D img volume (mb, height, width, depth, nc)
+    - thetas: 2x2 matrix for transform (mb, 2, 2) 
+    
+    Returns transformed image volume """
 
     mb_size = input_vol.shape[0]
     height = input_vol.shape[1]
@@ -36,9 +39,12 @@ def affineTransformation(input_vol, thetas):
     return output_vol
 
 
-def coordGen(mb_size, height, width, depth):
-    """ Generate coordinates (mb, 3, height * width)
-        3rd dim consists of height * width rows for X, Y and ones """
+def coord_gen(mb_size, height, width, depth):
+
+    """ Generates coordinates (mb_size, 3, height * width)
+        3rd dim consists of height * width rows for X, Y and ones
+        
+        Returns flat pixel coordinates """
     
     height_f = tf.cast(height, tf.float32)
     width_f = tf.cast(width, tf.float32)
@@ -55,7 +61,15 @@ def coordGen(mb_size, height, width, depth):
 
 
 def interpolate(input_vol, X, Y, mb_size):
-    """ Performs interpolation input_vol, using deformation fields X, Y, Z """
+
+    """ Implements interpolation of input image volume,
+        using deformation fields X, Y 
+        - input_vol: input image volume,
+        - X: generated X def field
+        - Y: generated Y def field
+        - mb_size: minibatch size
+    
+        Returns interpolated image volume of dimension 5 """
 
     height = input_vol.shape[1]
     width = input_vol.shape[2]
@@ -131,6 +145,9 @@ def interpolate(input_vol, X, Y, mb_size):
 
 
 if __name__ == "__main__":
+
+    """ Testing of above functions on toy example """
+
     from TransGen import TransMatGen
 
     start_t = time.time()

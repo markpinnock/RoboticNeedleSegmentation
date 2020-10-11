@@ -14,11 +14,13 @@ sys.path.append('..')
 sys.path.append('/home/mpinnock/Robot/001_CNN_Robotic_Needle_Seg/')
 
 from Networks import UNetGen
-from utils.DataLoader import imgLoader
-from utils.TrainFuncs import trainStep, valStep
+from utils.DataLoader import img_loader
+from utils.TrainFuncs import train_step, val_step
 from utils.TransGen import TransMatGen
-from utils.Transformation import affineTransformation
+from utils.Transformation import affine_transformation
 
+
+""" Training script for segmentation UNet """
 
 # Handle arguments
 parser = ArgumentParser()
@@ -134,11 +136,11 @@ else:
 
 # Create dataset
 train_ds = tf.data.Dataset.from_generator(
-    imgLoader, args=[img_path, seg_path, img_train, seg_train, True], output_types=(tf.float32, tf.float32))
+    img_loader, args=[img_path, seg_path, img_train, seg_train, True], output_types=(tf.float32, tf.float32))
 
 if NUM_FOLDS > 0:
     val_ds = tf.data.Dataset.from_generator(
-        imgLoader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
+        img_loader, args=[img_path, seg_path, img_val, seg_val, False], output_types=(tf.float32, tf.float32))
 
 # Initialise model
 UNet = UNetGen(input_shape=LO_VOL_SIZE, starting_channels=NC)
@@ -164,20 +166,20 @@ for epoch in range(EPOCHS):
             img = affineTransformation(img, trans_mat)
             seg = affineTransformation(seg, trans_mat)
 
-        train_metric += trainStep(img, seg, UNet, Optimiser)
+        train_metric += train_step(img, seg, UNet, Optimiser)
         train_count += 1
 
     # Validation step if required
     if NUM_FOLDS > 0:
         for img, seg in val_ds.batch(MB_SIZE):
-            val_metric += valStep(img, seg, UNet)
+            val_metric += val_step(img, seg, UNet)
             val_count += 1
     else:
         val_count += 1e-6
 
     # Print losses every epoch
-    print(f"Epoch: {epoch + 1}, Train Loss: {train_metric / (train_count)}, Val Loss: {val_metric / (val_count)}")
-    log_file.write(f"Epoch: {epoch + 1}, Train Loss: {train_metric}, Val Loss: {val_metric}\n")
+    print(f"Epoch: {epoch + 1}, Train Loss: {train_metric / train_count}, Val Loss: {val_metric / val_count}")
+    log_file.write(f"Epoch: {epoch + 1}, Train Loss: {train_metric / train_count}, Val Loss: {val_metric / val_count}\n")
     train_metric = 0
     val_metric = 0
 

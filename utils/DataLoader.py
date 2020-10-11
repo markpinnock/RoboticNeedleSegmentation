@@ -4,7 +4,17 @@ import random
 import tensorflow as tf
 
 
-def imgLoader(img_path, seg_path, img_list, seg_list, shuffle_flag):
+def img_loader(img_path, seg_path, img_list, seg_list, shuffle_flag):
+
+    """ Implements image loader
+        - img_path: UTF-8 encoded string of image directory
+        - seg_path: UTF-8 encoded string of segmentation directory
+        - img_list: images to be used in dataset
+        - seg_list: segmentations to be used in dataset
+        - shuffle_flag: shuffle dataset e.g. for training (True/False)
+
+        Returns generator for use in tf.data.Dataset.from_generator """
+
     img_path = img_path.decode("utf-8")
     seg_path = seg_path.decode("utf-8")
 
@@ -32,9 +42,10 @@ def imgLoader(img_path, seg_path, img_list, seg_list, shuffle_flag):
         finally:
             i += 1
 
-# Data aug
 
 if __name__ == "__main__":
+
+    """ Testing of dataloader using some test examples """
 
     FILE_PATH = "Z:/Robot_Data/"
     img_path = f"{FILE_PATH}Img/"
